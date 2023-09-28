@@ -382,7 +382,7 @@ class KMZParser:
 
 if __name__ == "__main__":
     print("="*30)
-    print("RUNNING GLIDER SCI DATA PROCESSOR")
+    print("RUNNING GLIDER FLIGHT DATA PROCESSOR")
 
     k = KMZParser(folder_path="data/")
 
