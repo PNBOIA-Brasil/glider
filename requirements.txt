@@ -1,0 +1,5 @@
+pandas
+plotly
+folium
+glob2
+bs4
