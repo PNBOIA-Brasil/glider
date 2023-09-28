@@ -1,4 +1,6 @@
-*csv
-*kmz
-*txt
-*html
+*.csv
+*.kmz
+*.txt
+*.html
+*.kml
+
