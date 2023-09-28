@@ -1,5 +1,3 @@
-data/*
-!data/
-
-htmls/*
-!html/
+*csv
+*txt
+*html
