@@ -249,6 +249,35 @@ class KMZParser:
             control=True
         ).add_to(map)
 
+        title_html = """
+            <div style="
+                position: absolute;
+                top: 10px;
+                left: 60px;
+                background-color: rgba(255, 255, 255, 0.8);
+                padding: 10px;
+                border-radius: 5px;
+                z-index: 1000;
+                display: flex;
+                align-items: center;">
+                <img src="https://i.imgur.com/rJ4KKmn.png" alt="Imgur Image" style="
+                    width: 232.5px;
+                    height: 75px;
+                    margin-right: 10px;
+                    border-radius: 5px;">
+                <div style="
+                    display: flex;
+                    flex-direction: column;
+                    align-items: flex-start;">
+                    <h3 style="margin: 0;">Glider Flight Data</h3>
+                    <p style="margin: 0;">Interactive Map</p>
+                </div>
+            </div>
+        """
+
+        map.get_root().html.add_child(folium.Element(title_html))
+
+
         surfacings_layer = folium.FeatureGroup(name='Surfacings', overlay=True).add_to(map)
         surface_movements_layer = folium.FeatureGroup(name='Surface Movements', overlay=True).add_to(map)
         glider_tracks_layer = folium.FeatureGroup(name='Glider Tracks', overlay=True).add_to(map)

@@ -113,6 +113,8 @@ class SFMCGliderData():
             traces.append(trace)
 
         layout = go.Layout(
+            title_text="Glider Science Data",
+            title_font_size=35,
             xaxis=dict(
                 rangeslider=dict(visible=True),
                 rangeselector=dict(
@@ -127,8 +129,8 @@ class SFMCGliderData():
                 title="Datahora",
                 title_font=dict(size=14),
                 showgrid=True,
-                gridcolor="lightgrey",
-                range=[data.index[0] - timedelta(days=30), data.index[0] + timedelta(hours=12)]
+                gridcolor="lightgrey"
+                # range=[data.index[0] - timedelta(days=30), data.index[0] + timedelta(hours=12)]
             ),
             yaxis=dict(
                 title_font=dict(size=14),
