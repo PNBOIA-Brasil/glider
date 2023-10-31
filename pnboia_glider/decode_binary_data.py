@@ -22,9 +22,6 @@ class GliderData():
         self.glider_unit_name = self.extract_section_from_data_file_name(data_file_names=self.data_file_names,
                                                                             section="glider_unit_name",
                                                                             index=0)
-        self.year = self.extract_section_from_data_file_name(data_file_names=self.data_file_names,
-                                                                            section="year",
-                                                                            index=0)
         self.mission_params_first = self.extract_section_from_data_file_name(data_file_names=self.data_file_names,
                                                                             section="mission_params",
                                                                             index=0)
@@ -69,10 +66,8 @@ class GliderData():
 
         if section == "glider_unit_name":
             pattern = r'unit_\d+'
-        elif section == "year":
-            pattern = r'-(\d{4})-'
         elif section == "mission_params":
-            pattern = r'(\d\d\d-\d-\d)'
+            pattern = r'(\d{4}-\d{3}-\d-\d)'
 
         match = re.search(pattern, data_file_names[index])
 
@@ -80,13 +75,16 @@ class GliderData():
 
     def compose_data_file_name(self):
         print("Composing filename...")
-        return f"{self.glider_unit_name}_{self.year}_{self.mission_params_first}_{self.mission_params_last}.csv"
+        return f"{self.glider_unit_name}_{self.mission_params_first}_to_{self.mission_params_last}.csv"
 
     def save_csv_file(self, data:pd.DataFrame):
         file_name = self.compose_data_file_name()
         print(f"Saving file as {file_name}...")
         file_path = os.path.join(self.binary_files_path, file_name)
         data.to_csv(file_path)
+
+
+
 
 if __name__ == "__main__":
     print("="*30)
