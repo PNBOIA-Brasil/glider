@@ -1,3 +1,14 @@
+"""
+PNBoia Glider Binary Data Processor
+Author: Thiago Caminha
+version: 0.0.1
+
+A script to generate a csv file from the glider binary and cache data.
+
+Credits:
+Lucas Merckelbach (https://github.com/smerckel), author of the dbdreder package.
+"""
+
 from dbdreader import DBD, MultiDBD, DBDPatternSelect
 from datetime import datetime
 import pandas as pd
@@ -93,7 +104,14 @@ if __name__ == "__main__":
     if len(sys.argv) < 1:
         raise AttributeError("Please, provide the path to the files directory.")
 
-    g = GliderData(binary_files_path=sys.argv[1], cache_dir=sys.argv[1],extension=".[st]bd")
+    if sys.argv[2] == "small":
+        extension = ".[st]bd"
+    elif sys.argv[2] == "big":
+        extension = ".[de]bd"
+    print(sys.argv[1])
+    print(sys.argv[2])
+
+    g = GliderData(binary_files_path=sys.argv[1], cache_dir=sys.argv[1], extension=extension)
 
     # decode binary data
     g.bd = MultiDBD(pattern=g.pattern, cacheDir=g.cache_dir)
