@@ -39,9 +39,10 @@ class GliderData():
         self.mission_params_last = self.extract_section_from_data_file_name(data_file_names=self.data_file_names,
                                                                             section="mission_params",
                                                                             index=-1)
+        self.extension = extension.strip(".")
 
-
-    def generate_dataframe(self, parameters_type:str="eng"):
+    # WIDE DATAFRAME METHODS
+    def generate_wide_dataframe(self, parameters_type:str="eng"):
         print(f"Generating {parameters_type} dataframe...")
 
         data = pd.DataFrame([])
@@ -58,15 +59,14 @@ class GliderData():
         else:
             raise AttributeError("No binary data attribute was created. Please, review your instantiation using the MultiDBD tool.")
 
-
         return data
 
     def sort_by_time(self, data:pd.DataFrame):
         return data.sort_values("time")
 
-    def merge_sci_eng(self, science_data:pd.DataFrame, engineer_data:pd.DataFrame):
+    def merge_sci_eng(self, science_data:pd.DataFrame, engineering_data:pd.DataFrame):
         print(f"Merging eng and sci data to a single dataframe...")
-        return pd.merge(science_data, engineer_data, on="time", how="outer")
+        return pd.merge(science_data, engineering_data, on="time", how="outer")
 
     def convert_to_datetime(self, time:np.array):
         print("Converting timestamp to datetime...")
@@ -84,17 +84,57 @@ class GliderData():
 
         return match.group(0)
 
-    def compose_data_file_name(self):
+    def compose_data_file_name(self, file_type:str="narrow"):
         print("Composing filename...")
-        return f"{self.glider_unit_name}_{self.mission_params_first}_to_{self.mission_params_last}.csv"
+        return f"{self.glider_unit_name}_{self.mission_params_first}_to_{self.mission_params_last}_{self.extension}_{file_type}.csv"
 
-    def save_csv_file(self, data:pd.DataFrame):
-        file_name = self.compose_data_file_name()
+    def save_csv_file(self, data:pd.DataFrame, file_type:str="narrow"):
+        file_name = self.compose_data_file_name(file_type=file_type)
         print(f"Saving file as {file_name}...")
         file_path = os.path.join(self.binary_files_path, file_name)
         data.to_csv(file_path)
 
+    # NARROW DATAFRAME METHODS
+    def generate_narrow_dataframe(self, parameters_type:str="eng"):
 
+        data = pd.DataFrame(columns=["time", "variable", "value"])
+
+        if hasattr(self,"bd"):
+            for parameter in self.bd.parameterNames[parameters_type]:
+                time, values = self.bd.get(parameter)
+                single_param_data = pd.DataFrame({"time":time, "variable":parameter, "value":values})
+                if data.empty:
+                    data = single_param_data
+                else:
+                    data = pd.concat([data, single_param_data], axis=0)
+
+        else:
+            raise AttributeError("No binary data attribute was created. Please, review your instantiation using the MultiDBD tool.")
+
+        return data
+
+    def round_values(self, data:pd.DataFrame, round_number:int=4):
+        print(f"Rouding values by {round_number}...")
+        data["value"] = data["value"].round(round_number)
+        return data
+
+    def create_data_type_column(self, data:pd.DataFrame, data_type:str="engineering"):
+        print(f"Creating data_type ({data_type}) column...")
+        data.insert(1,"data_type", data_type)
+        return data
+
+    def concat_sci_eng(self, science_data:pd.DataFrame, engineering_data:pd.DataFrame):
+        return pd.concat([science_data, engineering_data], axis=0)
+
+    def drop_redundant_parameters(self, science_data:pd.DataFrame, engineering_data:pd.DataFrame):
+        test = np.isin(engineering_data.values, science_data.values)
+        idxs = [idx for idx, t in enumerate(test) if t]
+
+        pass
+
+    def pivot_data(self, data:pd.DataFrame):
+        data = data.reset_index()
+        return data.pivot(index="date_time", columns="variable", values="value")
 
 
 if __name__ == "__main__":
@@ -108,23 +148,41 @@ if __name__ == "__main__":
         extension = ".[st]bd"
     elif sys.argv[2] == "big":
         extension = ".[de]bd"
-    print(sys.argv[1])
-    print(sys.argv[2])
 
     g = GliderData(binary_files_path=sys.argv[1], cache_dir=sys.argv[1], extension=extension)
 
     # decode binary data
     g.bd = MultiDBD(pattern=g.pattern, cacheDir=g.cache_dir)
 
+
     # process data
-    g.science_data = g.generate_dataframe(parameters_type="sci")
-    g.engineer_data = g.generate_dataframe(parameters_type="eng")
-    g.all_data = g.merge_sci_eng(science_data=g.science_data, engineer_data=g.engineer_data)
+    g.science_data = g.generate_narrow_dataframe(parameters_type="sci")
+    g.science_data = g.create_data_type_column(data=g.science_data, data_type="science")
+    g.engineering_data = g.generate_narrow_dataframe(parameters_type="eng")
+    g.engineering_data = g.create_data_type_column(data=g.engineering_data, data_type="engineering")
+
+    g.all_data = g.concat_sci_eng(science_data=g.science_data, engineering_data=g.engineering_data)
+
+    g.all_data = g.round_values(data=g.all_data, round_number=4)
 
     g.all_data["date_time"] = g.convert_to_datetime(time=g.all_data["time"])
     g.all_data = g.all_data.set_index("date_time").sort_index()
 
+    # g.all_data_wide = g.pivot_data(data=g.all_data)
+
     # save data
-    g.save_csv_file(data=g.all_data)
+    g.save_csv_file(data=g.all_data, file_type="narrow")
+    # g.save_csv_file(data=g.all_data_wide, file_type="wide")
+
+
+    # g.science_data = g.generate_dataframe(parameters_type="sci")
+    # g.engineering_data = g.generate_dataframe(parameters_type="eng")
+    # g.all_data = g.merge_sci_eng(science_data=g.science_data, engineering_data=g.engineering_data)
+
+    # g.all_data["date_time"] = g.convert_to_datetime(time=g.all_data["time"])
+    # g.all_data = g.all_data.set_index("date_time").sort_index()
+
+    # # save data
+    # g.save_csv_file(data=g.all_data)
 
     print("\nSUCCESSFULL PROCESSING")
