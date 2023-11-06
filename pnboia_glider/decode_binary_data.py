@@ -127,10 +127,14 @@ class GliderData():
         return pd.concat([science_data, engineering_data], axis=0)
 
     def drop_redundant_parameters(self, science_data:pd.DataFrame, engineering_data:pd.DataFrame):
-        test = np.isin(engineering_data.values, science_data.values)
+        test = np.isin(engineering_data["variable"].unique(), science_data["variable"].unique())
         idxs = [idx for idx, t in enumerate(test) if t]
 
-        pass
+        if len(idxs) == 0:
+            return science_data
+        else:
+            redundant_parameters = g.engineering_data["variable"].unique()[idxs]
+            return science_data[~science_data.variable.isin(redundant_parameters)]
 
     def pivot_data(self, data:pd.DataFrame):
         data = data.reset_index()
@@ -139,7 +143,7 @@ class GliderData():
 
 if __name__ == "__main__":
     print("="*30)
-    print("RUNNING BINARY DATA PROCESSOR")
+    print("RUNNING GLIDER BINARY DATA PROCESSOR")
 
     if len(sys.argv) < 1:
         raise AttributeError("Please, provide the path to the files directory.")
@@ -156,10 +160,12 @@ if __name__ == "__main__":
 
 
     # process data
-    g.science_data = g.generate_narrow_dataframe(parameters_type="sci")
-    g.science_data = g.create_data_type_column(data=g.science_data, data_type="science")
     g.engineering_data = g.generate_narrow_dataframe(parameters_type="eng")
     g.engineering_data = g.create_data_type_column(data=g.engineering_data, data_type="engineering")
+
+    g.science_data = g.generate_narrow_dataframe(parameters_type="sci")
+    g.science_data = g.create_data_type_column(data=g.science_data, data_type="science")
+    g.science_data = g.drop_redundant_parameters(engineering_data=g.engineering_data, science_data=g.science_data)
 
     g.all_data = g.concat_sci_eng(science_data=g.science_data, engineering_data=g.engineering_data)
 
@@ -168,12 +174,11 @@ if __name__ == "__main__":
     g.all_data["date_time"] = g.convert_to_datetime(time=g.all_data["time"])
     g.all_data = g.all_data.set_index("date_time").sort_index()
 
-    # g.all_data_wide = g.pivot_data(data=g.all_data)
+    g.all_data_wide = g.pivot_data(data=g.all_data)
 
     # save data
     g.save_csv_file(data=g.all_data, file_type="narrow")
-    # g.save_csv_file(data=g.all_data_wide, file_type="wide")
-
+    g.save_csv_file(data=g.all_data_wide, file_type="wide")
 
     # g.science_data = g.generate_dataframe(parameters_type="sci")
     # g.engineering_data = g.generate_dataframe(parameters_type="eng")
