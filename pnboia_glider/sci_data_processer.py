@@ -69,7 +69,7 @@ class SFMCGliderData():
 
 
     def drop_unwanted_columns(self, data:pd.DataFrame):
-        columns_to_drop = data.filter(regex="Unnamed").columns
+        columns_to_drop = data.filter(regex="Unnamed|chl").columns
         return data.drop(columns=columns_to_drop)
 
     def get_units(self, data:pd.DataFrame):
@@ -114,7 +114,7 @@ class SFMCGliderData():
 
         layout = go.Layout(
             title_text="Glider Science Data",
-            title_font_size=35,
+            title_font_size=20,
             xaxis=dict(
                 rangeslider=dict(visible=True),
                 rangeselector=dict(

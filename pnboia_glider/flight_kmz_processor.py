@@ -26,6 +26,8 @@ class KMZParser:
         self.output_surface_movements_csv_file_name = "surface_movements.csv"
         self.output_glider_tracks_csv_file_name = "glider_tracks.csv"
         self.output_depth_curr_csv_file_name = "depth_avg_currents.csv"
+        self.output_planned_waypoints_csv_file_name = "planned_waypoints.csv"
+
 
 
         self.kmz_file_name = self.grab_kmz_file(folder_path=folder_path)
@@ -65,12 +67,19 @@ class KMZParser:
         self.depth_current_avg_coords_df = self.generate_coordinates_dataframe(coordinates=self.depth_current_avg_coords,
                                                                     columns_names=self.depth_current_avg_coords_cols_names)
 
+        # # planned waypoints coords
+        # self.planned_waypoints_coords_cols_names = ["folder_name", "longitude", "latitude" ]
+        # self.planned_waypoints_coords = self.parse_planned_waypoints(folders=self.folders)
+        # self.planned_waypoints_coords_df = self.generate_coordinates_dataframe(coordinates=self.surface_movements_coords,
+        #                                                             columns_names=self.surface_movements_coords_cols_names)
+
 
         # interactive map
         self.interactive_map = self.plot_map(surfacings_data=self.surfacings_coords_df,
                 surface_movements_data=self.surface_movements_coords_df,
                 glider_tracks_data=self.glider_track_coords_df,
                 depth_avg_currents_data=self.depth_current_avg_coords_df)
+                # planned_waypoints=self.planned_waypoints_coords_df)
 
         self.save_map_as_html(map=self.interactive_map, file_name=self.output_interactive_map_html_file_name)
 
@@ -230,6 +239,32 @@ class KMZParser:
 
         return coordinates
 
+    def parse_planned_waypoints(self, folders, folder_name:str="Planned Waypoints"):
+        print(f"Parsing {folder_name} folder...")
+
+        index = self.get_folder_index(folder_name=folder_name)
+        folder_name = self.folders_names[index]
+        folder = self.folders[index]
+
+        coordinates = []
+
+        placemarks = self.parse_find_all(folder=folder, child_name="placemark")
+
+        for placemark in placemarks:
+            coordinates_text = self.parse_find(parent=placemark, child_name="coordinates").text
+            try:
+                gps_time_text = placemark.find("description").text
+                gps_time = re.search(self._gps_time_string_pattern, gps_time_text).group(1)
+            except:
+                gps_time = np.nan
+
+            coordinates_list = [tuple(map(float, coord.split(","))) for coord in coordinates_text.strip().split()]
+
+            for coord in coordinates_list:
+                coordinates.append((folder_name, gps_time, coord[0], coord[1]))
+
+        return coordinates
+
     def plot_map(self,
                 surfacings_data:pd.DataFrame,
                 surface_movements_data:pd.DataFrame,
@@ -249,33 +284,97 @@ class KMZParser:
             control=True
         ).add_to(map)
 
-        title_html = """
-            <div style="
-                position: absolute;
-                top: 10px;
-                left: 60px;
-                background-color: rgba(255, 255, 255, 0.8);
-                padding: 10px;
-                border-radius: 5px;
-                z-index: 1000;
-                display: flex;
-                align-items: center;">
-                <img src="https://i.imgur.com/rJ4KKmn.png" alt="Imgur Image" style="
-                    width: 232.5px;
-                    height: 75px;
-                    margin-right: 10px;
-                    border-radius: 5px;">
-                <div style="
-                    display: flex;
-                    flex-direction: column;
-                    align-items: flex-start;">
-                    <h3 style="margin: 0;">Glider Flight Data</h3>
-                    <p style="margin: 0;">Interactive Map</p>
-                </div>
-            </div>
-        """
+        plotly_graph_html = open('htmls/glider_sci_data_timeseries.html').read()
 
-        map.get_root().html.add_child(folium.Element(title_html))
+        # Define a custom HTML control to toggle the Plotly graph
+        html = """
+<div style="
+    position: absolute;
+    top: 10px;
+    left: 60px;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 10px;
+    border-radius: 5px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;">
+    <img src="https://i.imgur.com/rJ4KKmn.png" alt="Imgur Image" style="
+        width: 232.5px;
+        height: 75px;
+        margin-right: 10px;
+        border-radius: 5px;">
+    <div style="
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;">
+        <h3 style="margin: 0;">Glider Flight Data</h3>
+        <p style="margin: 0;">Interactive Map</p>
+    </div>
+</div>
+<button id="toggle-plotly" onclick="togglePlotly()" style="
+    position: absolute;
+    top: 120px;
+    left: 60px;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 5px 10px;
+    border-radius: 5px;
+    z-index: 1000;
+    cursor: pointer;
+">Science Data</button>
+<div id="plotly-container" style="
+    position: absolute;
+    top: 160px;
+    left: 60px;
+    background-color: white;
+    padding: 10px;
+    border: 1px solid gray;
+    z-index: 1000;
+    display: none;">
+    %s
+</div>
+<script>
+function togglePlotly() {
+    var plotlyContainer = document.getElementById("plotly-container");
+    if (plotlyContainer.style.display === "none") {
+        plotlyContainer.style.display = "block";
+    } else {
+        plotlyContainer.style.display = "none";
+    }
+}
+</script>
+""" % plotly_graph_html
+
+        # Add the custom HTML control to the map
+        map.get_root().html.add_child(folium.Element(html))
+
+
+        # title_html = """
+        #     <div style="
+        #         position: absolute;
+        #         top: 10px;
+        #         left: 60px;
+        #         background-color: rgba(255, 255, 255, 0.8);
+        #         padding: 10px;
+        #         border-radius: 5px;
+        #         z-index: 1000;
+        #         display: flex;
+        #         align-items: center;">
+        #         <img src="https://i.imgur.com/rJ4KKmn.png" alt="Imgur Image" style="
+        #             width: 232.5px;
+        #             height: 75px;
+        #             margin-right: 10px;
+        #             border-radius: 5px;">
+        #         <div style="
+        #             display: flex;
+        #             flex-direction: column;
+        #             align-items: flex-start;">
+        #             <h3 style="margin: 0;">Glider Flight Data</h3>
+        #             <p style="margin: 0;">Interactive Map</p>
+        #         </div>
+        #     </div>
+        # """
+
+        # map.get_root().html.add_child(folium.Element(title_html))
 
 
         surfacings_layer = folium.FeatureGroup(name='Surfacings', overlay=True).add_to(map)
@@ -367,8 +466,8 @@ class KMZParser:
         # surfacings_layer = folium.FeatureGroup(name='Surfacings', overlay=True).add_to(map)
         folium.LayerControl().add_to(map)
 
-        MeasureControl(primary_length_unit='meters',
-                        primary_area_unit='sqmeters').add_to(map)
+        # MeasureControl(primary_length_unit='meters',
+        #                 primary_area_unit='sqmeters').add_to(map)
 
         return map
 
@@ -389,12 +488,19 @@ if __name__ == "__main__":
 
     print(f"Saving Surfacings data as {k.output_surfacings_csv_file_name}")
     k.surfacings_coords_df.to_csv(os.path.join("data/",k.output_surfacings_csv_file_name))
+
     print(f"Saving Surface Movements data as {k.output_surface_movements_csv_file_name}")
     k.surface_movements_coords_df.to_csv(os.path.join("data/",k.output_surface_movements_csv_file_name))
+
     print(f"Saving Glider Tracks data as {k.output_glider_tracks_csv_file_name}")
     k.glider_track_coords_df.to_csv(os.path.join("data/",k.output_glider_tracks_csv_file_name))
+
     print(f"Saving Depth Avarage Currents data as {k.output_depth_curr_csv_file_name}")
     k.depth_current_avg_coords_df.to_csv(os.path.join("data/",k.output_depth_curr_csv_file_name))
+
+    # print(f"Saving Planned waypoints data as {k.output_depth_curr_csv_file_name}")
+    # k.surface_movements_coords_df.to_csv(os.path.join("data/",k.output_planned_waypoints_csv_file_name))
+
 
     print("\nSUCCESSFULL PROCESSING")
 

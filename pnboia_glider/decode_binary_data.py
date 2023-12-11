@@ -3,7 +3,7 @@ PNBoia Glider Binary Data Processor
 Author: Thiago Caminha
 version: 0.0.1
 
-A script to generate a csv file from the glider binary and cache data.
+A script that uses the dbdreader package to decode and generate csv file from the glider binary and cache data.
 
 Credits:
 Lucas Merckelbach (https://github.com/smerckel), author of the dbdreder package.
@@ -41,7 +41,7 @@ class GliderData():
                                                                             index=-1)
         self.extension = extension.strip(".")
 
-    # WIDE DATAFRAME METHODS
+    # WIDE CSV METHODS
     def generate_wide_dataframe(self, parameters_type:str="eng"):
         print(f"Generating {parameters_type} dataframe...")
 
@@ -94,7 +94,7 @@ class GliderData():
         file_path = os.path.join(self.binary_files_path, file_name)
         data.to_csv(file_path)
 
-    # NARROW DATAFRAME METHODS
+    # NARROW CSV METHODS
     def generate_narrow_dataframe(self, parameters_type:str="eng"):
 
         data = pd.DataFrame(columns=["time", "variable", "value"])
@@ -158,14 +158,14 @@ if __name__ == "__main__":
     # decode binary data
     g.bd = MultiDBD(pattern=g.pattern, cacheDir=g.cache_dir)
 
-
-    # process data
+    # process
     g.engineering_data = g.generate_narrow_dataframe(parameters_type="eng")
     g.engineering_data = g.create_data_type_column(data=g.engineering_data, data_type="engineering")
 
     g.science_data = g.generate_narrow_dataframe(parameters_type="sci")
     g.science_data = g.create_data_type_column(data=g.science_data, data_type="science")
-    g.science_data = g.drop_redundant_parameters(engineering_data=g.engineering_data, science_data=g.science_data)
+    if sys.argv[2] == "big":
+        g.science_data = g.drop_redundant_parameters(engineering_data=g.engineering_data, science_data=g.science_data)
 
     g.all_data = g.concat_sci_eng(science_data=g.science_data, engineering_data=g.engineering_data)
 
@@ -176,18 +176,8 @@ if __name__ == "__main__":
 
     g.all_data_wide = g.pivot_data(data=g.all_data)
 
-    # save data
+    # save
     g.save_csv_file(data=g.all_data, file_type="narrow")
     g.save_csv_file(data=g.all_data_wide, file_type="wide")
-
-    # g.science_data = g.generate_dataframe(parameters_type="sci")
-    # g.engineering_data = g.generate_dataframe(parameters_type="eng")
-    # g.all_data = g.merge_sci_eng(science_data=g.science_data, engineering_data=g.engineering_data)
-
-    # g.all_data["date_time"] = g.convert_to_datetime(time=g.all_data["time"])
-    # g.all_data = g.all_data.set_index("date_time").sort_index()
-
-    # # save data
-    # g.save_csv_file(data=g.all_data)
 
     print("\nSUCCESSFULL PROCESSING")
