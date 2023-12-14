@@ -41,6 +41,10 @@ class GliderData():
                                                                             index=-1)
         self.extension = extension.strip(".")
 
+        self.params_selection = ["m_depth","m_lat","m_lon","sci_rbrctd_temperature_00", "sci_oxy4_oxygen",
+                                "sci_rbrctd_temperature_00","sci_rbrctd_salinity_00","sci_seaowl_chl_scaled",
+                                "sci_seaowl_fdom_scaled","sci_seaowl_bb_scaled"]
+
     # WIDE CSV METHODS
     def generate_wide_dataframe(self, parameters_type:str="eng"):
         print(f"Generating {parameters_type} dataframe...")
@@ -100,7 +104,8 @@ class GliderData():
         data = pd.DataFrame(columns=["time", "variable", "value"])
 
         if hasattr(self,"bd"):
-            for parameter in self.bd.parameterNames[parameters_type]:
+            # for parameter in self.bd.parameterNames[parameters_type]:
+            for parameter in self.params_selection:
                 time, values = self.bd.get(parameter)
                 single_param_data = pd.DataFrame({"time":time, "variable":parameter, "value":values})
                 if data.empty:
@@ -174,10 +179,11 @@ if __name__ == "__main__":
     g.all_data["date_time"] = g.convert_to_datetime(time=g.all_data["time"])
     g.all_data = g.all_data.set_index("date_time").sort_index()
 
+    g.save_csv_file(data=g.all_data, file_type="narrow")
+
     g.all_data_wide = g.pivot_data(data=g.all_data)
 
     # save
-    g.save_csv_file(data=g.all_data, file_type="narrow")
     g.save_csv_file(data=g.all_data_wide, file_type="wide")
 
     print("\nSUCCESSFULL PROCESSING")
