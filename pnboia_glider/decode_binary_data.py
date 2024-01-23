@@ -41,9 +41,14 @@ class GliderData():
                                                                             index=-1)
         self.extension = extension.strip(".")
 
-        self.params_selection = ["m_depth","m_lat","m_lon","sci_rbrctd_temperature_00", "sci_oxy4_oxygen",
-                                "sci_rbrctd_temperature_00","sci_rbrctd_salinity_00","sci_seaowl_chl_scaled",
+        self.params_selection = ["m_depth","m_lat","m_lon","sci_rbrctd_temperature_00",
+                                "sci_oxy4_oxygen","sci_seaowl_chl_scaled",
                                 "sci_seaowl_fdom_scaled","sci_seaowl_bb_scaled"]
+
+        self.eng_params_selection = ['m_depth', 'm_lat', 'm_lon']
+        self.sci_params_selection = ['sci_rbrctd_temperature_00', 'sci_oxy4_oxygen','sci_rbrctd_salinity_00',
+                                    'sci_seaowl_chl_scaled', 'sci_seaowl_fdom_scaled','sci_seaowl_bb_scaled']
+
 
     # WIDE CSV METHODS
     def generate_wide_dataframe(self, parameters_type:str="eng"):
@@ -103,9 +108,15 @@ class GliderData():
 
         data = pd.DataFrame(columns=["time", "variable", "value"])
 
+        if parameters_type == "eng":
+            parameters_sel = self.eng_params_selection
+        elif parameters_type == "sci":
+            parameters_sel = self.sci_params_selection
+
+
         if hasattr(self,"bd"):
             # for parameter in self.bd.parameterNames[parameters_type]:
-            for parameter in self.params_selection:
+            for parameter in parameters_sel:
                 time, values = self.bd.get(parameter)
                 single_param_data = pd.DataFrame({"time":time, "variable":parameter, "value":values})
                 if data.empty:
@@ -138,7 +149,7 @@ class GliderData():
         if len(idxs) == 0:
             return science_data
         else:
-            redundant_parameters = g.engineering_data["variable"].unique()[idxs]
+            redundant_parameters = self.engineering_data["variable"].unique()[idxs]
             return science_data[~science_data.variable.isin(redundant_parameters)]
 
     def pivot_data(self, data:pd.DataFrame):
@@ -158,7 +169,9 @@ if __name__ == "__main__":
     elif sys.argv[2] == "big":
         extension = ".[de]bd"
 
-    g = GliderData(binary_files_path=sys.argv[1], cache_dir=sys.argv[1], extension=extension)
+    g = GliderData(binary_files_path=sys.argv[1], cache_dir=sys.argv[1], extension=".[de]bd")
+
+    # MultiDBD(pattern="ressurgencia/*.[de]bd", cacheDir="ressurgencia/")
 
     # decode binary data
     g.bd = MultiDBD(pattern=g.pattern, cacheDir=g.cache_dir)
@@ -169,8 +182,10 @@ if __name__ == "__main__":
 
     g.science_data = g.generate_narrow_dataframe(parameters_type="sci")
     g.science_data = g.create_data_type_column(data=g.science_data, data_type="science")
+
     if sys.argv[2] == "big":
         g.science_data = g.drop_redundant_parameters(engineering_data=g.engineering_data, science_data=g.science_data)
+
 
     g.all_data = g.concat_sci_eng(science_data=g.science_data, engineering_data=g.engineering_data)
 
@@ -179,11 +194,12 @@ if __name__ == "__main__":
     g.all_data["date_time"] = g.convert_to_datetime(time=g.all_data["time"])
     g.all_data = g.all_data.set_index("date_time").sort_index()
 
+    # save narrow data
     g.save_csv_file(data=g.all_data, file_type="narrow")
 
     g.all_data_wide = g.pivot_data(data=g.all_data)
 
-    # save
+    # save wide data
     g.save_csv_file(data=g.all_data_wide, file_type="wide")
 
     print("\nSUCCESSFULL PROCESSING")
