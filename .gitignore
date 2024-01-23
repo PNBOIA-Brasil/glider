@@ -3,4 +3,14 @@
 *.txt
 *.html
 *.kml
+*.zip
+*.png
+*.nc
+
+# glider binary data
+*.sbd
+*.tbd
+*.dbd
+*.ebd
+*.cac
 
