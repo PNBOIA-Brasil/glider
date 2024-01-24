@@ -18,7 +18,7 @@ from glob import glob
 import re
 import sys
 
-class PNBOIAGliderData():
+class GliderDataToCSV():
 
     def __init__(self, binary_files_path:str, cache_dir:str, extension:str=".[st]bd"):
 
