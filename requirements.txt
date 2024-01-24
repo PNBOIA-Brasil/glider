@@ -4,3 +4,6 @@ folium
 glob2
 bs4
 dbdreader
+python-dotenv
+sqlalchemy==1.4.27
+psycopg2
