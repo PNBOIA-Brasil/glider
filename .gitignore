@@ -12,5 +12,8 @@
 *.tbd
 *.dbd
 *.ebd
+*.mbd
+*.nbd
+*.nlg
 *.cac
 
