@@ -9,7 +9,7 @@ Credits:
 Lucas Merckelbach (https://github.com/smerckel), author of the dbdreder package.
 """
 
-from dbdreader import DBD, MultiDBD, DBDPatternSelect
+from dbdreader import MultiDBD
 from datetime import datetime
 import pandas as pd
 import numpy as np
@@ -18,7 +18,7 @@ from glob import glob
 import re
 import sys
 
-class GliderData():
+class PNBOIAGliderData():
 
     def __init__(self, binary_files_path:str, cache_dir:str, extension:str=".[st]bd"):
 
@@ -26,6 +26,9 @@ class GliderData():
         self.extension = "*" + extension
         self.pattern = os.path.join(binary_files_path,self.extension)
         self.cache_dir = cache_dir
+
+        print("Decoding binary data with dbdreader...")
+        self.bd = MultiDBD(pattern=self.pattern, cacheDir=self.cache_dir)
 
         self.data_file_names = glob(os.path.join(binary_files_path,"*bd"))
         self.cache_file_names = glob(os.path.join(cache_dir,"*.cac"))
@@ -97,26 +100,38 @@ class GliderData():
         print("Composing filename...")
         return f"{self.glider_unit_name}_{self.mission_params_first}_to_{self.mission_params_last}_{self.extension}_{file_type}.csv"
 
-    def save_csv_file(self, data:pd.DataFrame, file_type:str="narrow"):
+    def check_output_folder(self, output_path:str):
+        path_to_check = os.path.join(output_path, "processed")
+        if not os.path.exists(path_to_check):
+            os.makedirs(path_to_check)
+
+    def save_csv_file(self, data:pd.DataFrame, output_path:str, file_type:str="narrow"):
+
+        self.check_output_folder(output_path=output_path)
+
         file_name = self.compose_data_file_name(file_type=file_type)
-        print(f"Saving file as {file_name}...")
-        file_path = os.path.join(self.binary_files_path, file_name)
+        print(f"Saving {file_type} data file as {file_name}...")
+        output_path = os.path.join(self.binary_files_path,"processed")
+        file_path = os.path.join(output_path, file_name)
         data.to_csv(file_path)
 
     # NARROW CSV METHODS
-    def generate_narrow_dataframe(self, parameters_type:str="eng"):
+    def generate_narrow_dataframe(self, extension:str, parameters_type:str="eng"):
 
         data = pd.DataFrame(columns=["time", "variable", "value"])
 
-        if parameters_type == "eng":
-            parameters_sel = self.eng_params_selection
-        elif parameters_type == "sci":
-            parameters_sel = self.sci_params_selection
 
+        if extension == ".[st]bd":
+            selected_parameters = self.bd.parameterNames[parameters_type]
+        elif extension == ".[de]bd":
+            if parameters_type == "eng":
+                selected_parameters = self.eng_params_selection
+            elif parameters_type == "sci":
+                selected_parameters = self.sci_params_selection
 
         if hasattr(self,"bd"):
             # for parameter in self.bd.parameterNames[parameters_type]:
-            for parameter in parameters_sel:
+            for parameter in selected_parameters:
                 time, values = self.bd.get(parameter)
                 single_param_data = pd.DataFrame({"time":time, "variable":parameter, "value":values})
                 if data.empty:
@@ -156,50 +171,49 @@ class GliderData():
         data = data.reset_index()
         return data.pivot(index="date_time", columns="variable", values="value")
 
+# if __name__ == "__main__":
+#     print("="*30)
+#     print("RUNNING GLIDER BINARY DATA PROCESSOR")
 
-if __name__ == "__main__":
-    print("="*30)
-    print("RUNNING GLIDER BINARY DATA PROCESSOR")
+#     if len(sys.argv) < 1:
+#         raise AttributeError("Please, provide the path to the files directory.")
 
-    if len(sys.argv) < 1:
-        raise AttributeError("Please, provide the path to the files directory.")
+#     if sys.argv[2] == "small":
+#         extension = ".[st]bd"
+#     elif sys.argv[2] == "big":
+#         extension = ".[de]bd"
 
-    if sys.argv[2] == "small":
-        extension = ".[st]bd"
-    elif sys.argv[2] == "big":
-        extension = ".[de]bd"
+#     g = GliderData(binary_files_path=sys.argv[1], cache_dir=sys.argv[1], extension=".[de]bd")
 
-    g = GliderData(binary_files_path=sys.argv[1], cache_dir=sys.argv[1], extension=".[de]bd")
+#     # MultiDBD(pattern="ressurgencia/*.[de]bd", cacheDir="ressurgencia/")
 
-    # MultiDBD(pattern="ressurgencia/*.[de]bd", cacheDir="ressurgencia/")
+#     # decode binary data
+#     g.bd = MultiDBD(pattern=g.pattern, cacheDir=g.cache_dir)
 
-    # decode binary data
-    g.bd = MultiDBD(pattern=g.pattern, cacheDir=g.cache_dir)
+#     # process
+#     g.engineering_data = g.generate_narrow_dataframe(parameters_type="eng")
+#     g.engineering_data = g.create_data_type_column(data=g.engineering_data, data_type="engineering")
 
-    # process
-    g.engineering_data = g.generate_narrow_dataframe(parameters_type="eng")
-    g.engineering_data = g.create_data_type_column(data=g.engineering_data, data_type="engineering")
+#     g.science_data = g.generate_narrow_dataframe(parameters_type="sci")
+#     g.science_data = g.create_data_type_column(data=g.science_data, data_type="science")
 
-    g.science_data = g.generate_narrow_dataframe(parameters_type="sci")
-    g.science_data = g.create_data_type_column(data=g.science_data, data_type="science")
-
-    if sys.argv[2] == "big":
-        g.science_data = g.drop_redundant_parameters(engineering_data=g.engineering_data, science_data=g.science_data)
+#     if sys.argv[2] == "big":
+#         g.science_data = g.drop_redundant_parameters(engineering_data=g.engineering_data, science_data=g.science_data)
 
 
-    g.all_data = g.concat_sci_eng(science_data=g.science_data, engineering_data=g.engineering_data)
+#     g.all_data = g.concat_sci_eng(science_data=g.science_data, engineering_data=g.engineering_data)
 
-    g.all_data = g.round_values(data=g.all_data, round_number=4)
+#     g.all_data = g.round_values(data=g.all_data, round_number=4)
 
-    g.all_data["date_time"] = g.convert_to_datetime(time=g.all_data["time"])
-    g.all_data = g.all_data.set_index("date_time").sort_index()
+#     g.all_data["date_time"] = g.convert_to_datetime(time=g.all_data["time"])
+#     g.all_data = g.all_data.set_index("date_time").sort_index()
 
-    # save narrow data
-    g.save_csv_file(data=g.all_data, file_type="narrow")
+#     # save narrow data
+#     g.save_csv_file(data=g.all_data, file_type="narrow")
 
-    g.all_data_wide = g.pivot_data(data=g.all_data)
+#     g.all_data_wide = g.pivot_data(data=g.all_data)
 
-    # save wide data
-    g.save_csv_file(data=g.all_data_wide, file_type="wide")
+#     # save wide data
+#     g.save_csv_file(data=g.all_data_wide, file_type="wide")
 
-    print("\nSUCCESSFULL PROCESSING")
+#     print("\nSUCCESSFULL PROCESSING")
