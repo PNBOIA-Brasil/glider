@@ -1,0 +1,65 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import sys
+from pnboiaGliderBinary.etl import PNBOIAGlider
+
+
+if __name__ == "__main__":
+    print("="*30)
+    print("RUNNING GLIDER BINARY DATA PROCESSOR")
+
+    if len(sys.argv) < 1:
+        raise AttributeError("Please, provide the path to the files directory.")
+
+    if sys.argv[3] == "small":
+        extension = ".[st]bd"
+    elif sys.argv[3] == "big":
+        extension = ".[de]bd"
+
+    g = PNBOIAGlider(mission_id=1)
+
+    mission_info = g.get_mission_info(mission_id=g.mission_id)
+
+    pattern = g.compose_multidbd_pattern(binary_files_path=sys.argv[2], extension=extension)
+
+    g.bd = g.decode_binary_data(pattern=pattern, cache_dir=sys.argv[2])
+
+    eng_params = g.get_parameters(parameter_type="ENG")
+    eng_data = g.generate_narrow_dataframe(parameters=eng_params)
+
+
+    sci_params = g.get_parameters(parameter_type="SCI")
+    sci_data = g.generate_narrow_dataframe(parameters=sci_params)
+
+    all_data = g.concat_sci_eng(science_data=sci_data, engineering_data=eng_data)
+    all_data = g.convert_to_datetime(data=all_data)
+
+    all_data = g.round_values(data=all_data, round_number=4)
+
+    all_data = g.insert_mission_id(data=all_data, mission_id=mission_info.mission_id.values[0])
+    print(all_data.head())
+    # g.db.post(schema='data', table='data', data=all_data)
+
+    # # MultiDBD(pattern="ressurgencia/*.[de]bd", cacheDir="ressurgencia/")
+
+    # # decode binary data
+    # # g.bd = MultiDBD(pattern=g.pattern, cacheDir=g.cache_dir)
+
+    # # process
+    # g.engineering_data = g.generate_narrow_dataframe(parameters_type="eng", extension=extension)
+    # g.engineering_data = g.create_data_type_column(data=g.engineering_data, data_type="engineering")
+
+    # g.science_data = g.generate_narrow_dataframe(parameters_type="sci", extension=extension)
+    # g.science_data = g.create_data_type_column(data=g.science_data, data_type="science")
+
+    # if sys.argv[2] == "big":
+    #     g.science_data = g.drop_redundant_parameters(engineering_data=g.engineering_data, science_data=g.science_data)
+
+
+    # g.all_data = g.concat_sci_eng(science_data=g.science_data, engineering_data=g.engineering_data)
+
+    # g.all_data = g.round_values(data=g.all_data, round_number=4)
+
+    # g.all_data["date_time"] = g.convert_to_datetime(time=g.all_data["time"])
+    # g.all_data = g.all_data.set_index("date_time").sort_index()

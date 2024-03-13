@@ -18,11 +18,9 @@ from glob import glob
 import re
 import sys
 from pnboiaGliderDataBase.db import GetData
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
-load_dotenv()
-
-
+load_dotenv(find_dotenv())
 
 
 class PNBOIAGlider():
@@ -37,6 +35,7 @@ class PNBOIAGlider():
         if conn:
             self.db = GetData(conn=conn)
         else:
+            print(os.getenv('PNBOIA_GLIDER_HOST'))
             self.db = GetData(host=os.getenv('PNBOIA_GLIDER_HOST'),
                                 database=os.getenv('PNBOIA_GLIDER_DB'),
                                 user=os.getenv('PNBOIA_GLIDER_USER'),
@@ -55,9 +54,49 @@ class PNBOIAGlider():
         return MultiDBD(pattern=pattern, cacheDir=cache_dir)
 
     def get_parameters(self, parameter_type:str):
+        print(f"Grabing {parameter_type} parameters")
         return (self.db
                 .get(table="data.parameters", type=["=", parameter_type])
                 .sort_values("id")
                 )
 
-    # def get_system_data
+    def generate_narrow_dataframe(self, parameters:pd.DataFrame):
+
+        data = pd.DataFrame(columns=["time", "parameter_id", "value"])
+
+        if hasattr(self,"bd"):
+            for idx, row in parameters[['id','name']].iterrows():
+                print(f"Grabing {row['name']} (parameter_id = {row.id})")
+                time, values = self.bd.get(row['name'])
+                single_param_data = pd.DataFrame({"time":time,
+                                                    "parameter_id": row.id,
+                                                    "value":values})
+                if data.empty:
+                    data = single_param_data
+                else:
+                    data = pd.concat([data, single_param_data], axis=0)
+
+        else:
+            raise AttributeError("No binary data attribute was created. Please, review your instantiation using the MultiDBD tool.")
+
+        return data
+
+    def concat_sci_eng(self, science_data:pd.DataFrame, engineering_data:pd.DataFrame):
+        return pd.concat([science_data, engineering_data], axis=0)
+
+    def convert_to_datetime(self, data:pd.DataFrame):
+        print("Converting timestamp to datetime")
+        date_time = pd.to_datetime(data['time'] , unit="s")
+        data['date_time'] = date_time
+        data = data.drop(columns="time")
+        return data
+
+    def round_values(self, data:pd.DataFrame, round_number:int=4):
+        print(f"Rouding values by {round_number}")
+        data["value"] = data["value"].round(round_number)
+        return data
+
+    def insert_mission_id(self, data:pd.DataFrame, mission_id:int):
+        print(f"Inserting mission_id ({mission_id})")
+        data["mission_id"] = mission_id
+        return data
