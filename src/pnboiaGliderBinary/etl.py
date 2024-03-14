@@ -18,9 +18,6 @@ from glob import glob
 import re
 import sys
 from pnboiaGliderDataBase.db import GetData
-from dotenv import load_dotenv, find_dotenv
-
-load_dotenv(find_dotenv())
 
 
 class PNBOIAGlider():
@@ -35,7 +32,6 @@ class PNBOIAGlider():
         if conn:
             self.db = GetData(conn=conn)
         else:
-            print(os.getenv('PNBOIA_GLIDER_HOST'))
             self.db = GetData(host=os.getenv('PNBOIA_GLIDER_HOST'),
                                 database=os.getenv('PNBOIA_GLIDER_DB'),
                                 user=os.getenv('PNBOIA_GLIDER_USER'),
@@ -54,7 +50,7 @@ class PNBOIAGlider():
         return MultiDBD(pattern=pattern, cacheDir=cache_dir)
 
     def get_parameters(self, parameter_type:str):
-        print(f"Grabing {parameter_type} parameters")
+        print(f"\nGrabing {parameter_type} parameters")
         return (self.db
                 .get(table="data.parameters", type=["=", parameter_type])
                 .sort_values("id")
