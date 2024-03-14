@@ -10,6 +10,7 @@ load_dotenv()
 
 if __name__ == "__main__":
 
+    # Syntax handling ------------------
     if len(sys.argv) < 3 or len(sys.argv) > 4:
         print("Usage: python script_name.py <folder_path> <size> [option]")
         print("Size should be either 'big' or 'small'")
@@ -35,6 +36,7 @@ if __name__ == "__main__":
     elif sys.argv[2] == "big":
         extension = ".[de]bd"
 
+    # ETL run ------------------
     print("="*30)
     print("RUNNING GLIDER BINARY DATA PROCESSOR")
 
