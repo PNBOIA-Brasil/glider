@@ -1,65 +1,64 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import sys
 from pnboiaGliderBinary.etl import PNBOIAGlider
+import sys
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
 if __name__ == "__main__":
+
+    if len(sys.argv) < 3 or len(sys.argv) > 4:
+        print("Usage: python script_name.py <folder_path> <size> [option]")
+        print("Size should be either 'big' or 'small'")
+        print("Option can be '--post' or '-p'")
+        sys.exit(1)
+
+    folder_path = sys.argv[1]
+    size = sys.argv[2]
+    post = None
+    if len(sys.argv) == 4:
+        post = sys.argv[3]
+
+    if size not in ['big', 'small']:
+        print("Size should be either 'big' or 'small'")
+        sys.exit(1)
+
+    if post and post not in ['--post', '-p']:
+        print("Post option should be '--post' or '-p'")
+        sys.exit(1)
+
+    if sys.argv[2] == "small":
+        extension = ".[st]bd"
+    elif sys.argv[2] == "big":
+        extension = ".[de]bd"
+
     print("="*30)
     print("RUNNING GLIDER BINARY DATA PROCESSOR")
-
-    if len(sys.argv) < 1:
-        raise AttributeError("Please, provide the path to the files directory.")
-
-    if sys.argv[3] == "small":
-        extension = ".[st]bd"
-    elif sys.argv[3] == "big":
-        extension = ".[de]bd"
 
     g = PNBOIAGlider(mission_id=1)
 
     mission_info = g.get_mission_info(mission_id=g.mission_id)
 
-    pattern = g.compose_multidbd_pattern(binary_files_path=sys.argv[2], extension=extension)
+    pattern = g.compose_multidbd_pattern(binary_files_path=sys.argv[1], extension=extension)
 
-    g.bd = g.decode_binary_data(pattern=pattern, cache_dir=sys.argv[2])
+    g.bd = g.decode_binary_data(pattern=pattern, cache_dir=sys.argv[1])
 
     eng_params = g.get_parameters(parameter_type="ENG")
     eng_data = g.generate_narrow_dataframe(parameters=eng_params)
-
 
     sci_params = g.get_parameters(parameter_type="SCI")
     sci_data = g.generate_narrow_dataframe(parameters=sci_params)
 
     all_data = g.concat_sci_eng(science_data=sci_data, engineering_data=eng_data)
     all_data = g.convert_to_datetime(data=all_data)
-
     all_data = g.round_values(data=all_data, round_number=4)
-
     all_data = g.insert_mission_id(data=all_data, mission_id=mission_info.mission_id.values[0])
-    print(all_data.head())
-    # g.db.post(schema='data', table='data', data=all_data)
 
-    # # MultiDBD(pattern="ressurgencia/*.[de]bd", cacheDir="ressurgencia/")
+    print("\n", all_data.head(20))
 
-    # # decode binary data
-    # # g.bd = MultiDBD(pattern=g.pattern, cacheDir=g.cache_dir)
-
-    # # process
-    # g.engineering_data = g.generate_narrow_dataframe(parameters_type="eng", extension=extension)
-    # g.engineering_data = g.create_data_type_column(data=g.engineering_data, data_type="engineering")
-
-    # g.science_data = g.generate_narrow_dataframe(parameters_type="sci", extension=extension)
-    # g.science_data = g.create_data_type_column(data=g.science_data, data_type="science")
-
-    # if sys.argv[2] == "big":
-    #     g.science_data = g.drop_redundant_parameters(engineering_data=g.engineering_data, science_data=g.science_data)
-
-
-    # g.all_data = g.concat_sci_eng(science_data=g.science_data, engineering_data=g.engineering_data)
-
-    # g.all_data = g.round_values(data=g.all_data, round_number=4)
-
-    # g.all_data["date_time"] = g.convert_to_datetime(time=g.all_data["time"])
-    # g.all_data = g.all_data.set_index("date_time").sort_index()
+    if post:
+        print(f"\nPosting data in {os.getenv('PNBOIA_GLIDER_DB')}")
+        g.db.post(schema='data', table='data', data=all_data)
