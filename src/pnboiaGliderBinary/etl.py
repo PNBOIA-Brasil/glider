@@ -38,6 +38,7 @@ class PNBOIAGlider():
                                 password=os.getenv('PNBOIA_GLIDER_PSW'))
 
     def get_mission_info(self, mission_id):
+        print(f"Grabbing mission (mission_id = {mission_id}) information...")
         return (self.db
                 .get(table="glider.missions", mission_id=["=", mission_id])
             )
@@ -95,4 +96,18 @@ class PNBOIAGlider():
     def insert_mission_id(self, data:pd.DataFrame, mission_id:int):
         print(f"Inserting mission_id ({mission_id})")
         data["mission_id"] = mission_id
+        return data
+
+    def get_last_datetime_in_db(self, mission_id:int):
+        print("Filtering old data")
+        return (self.db
+                            .get(table="data.data", mission_id=['=', mission_id], last=True)
+                            .date_time
+                        )
+
+
+    def round_datetime(self, data:pd.DataFrame, frequency:str):
+        print("Rounding datetime")
+        date_time = data['date_time'].dt.round(freq="S")
+        data['date_time'] = date_time
         return data

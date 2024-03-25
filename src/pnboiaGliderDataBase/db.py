@@ -50,7 +50,8 @@ class GetData():
                 self.delete(table=table, schema=schema, query=query)
 
         data.to_sql(con=self.conn, name=table, schema=schema, if_exists='append', index=False)
-        print(f'data inserted in table {schema}.{table}')
+        print(f'{data.shape[0]} rows inserted in table {schema}.{table}')
+        print(f'({str(data.date_time.iloc[0])} to {str(data.date_time.iloc[-1])})')
 
     def delete(self, table, schema, query):
 
