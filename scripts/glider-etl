@@ -1,0 +1,80 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import os
+import sys
+from pnboiaGliderBinary.etl import PNBOIAGlider
+import traceback
+from dotenv import load_dotenv
+
+load_dotenv()
+
+if __name__ == "__main__":
+
+    # Syntax handling ------------------
+    if len(sys.argv) < 3 or len(sys.argv) > 4:
+        print("Usage: python script_name.py <folder_path> <size> [option]")
+        print("Size should be either 'big' or 'small'")
+        print("Option can be '--post' or '-p'")
+        sys.exit(1)
+
+    folder_path = sys.argv[1]
+    size = sys.argv[2]
+    post = None
+    if len(sys.argv) == 4:
+        post = sys.argv[3]
+
+    if size not in ['big', 'small']:
+        print("Size should be either 'big' or 'small'")
+        sys.exit(1)
+
+    if post and post not in ['--post', '-p']:
+        print("Post option should be '--post' or '-p'")
+        sys.exit(1)
+
+    if sys.argv[2] == "small":
+        extension = ".[st]bd"
+    elif sys.argv[2] == "big":
+        extension = ".[de]bd"
+
+    # ETL run ------------------
+    print("="*30)
+    print("RUNNING GLIDER BINARY DATA PROCESSOR")
+
+    try:
+        g = PNBOIAGlider(mission_id=1)
+
+        mission_info = g.get_mission_info(mission_id=g.mission_id)
+
+        pattern = g.compose_multidbd_pattern(binary_files_path=sys.argv[1], extension=extension)
+
+        g.bd = g.decode_binary_data(pattern=pattern, cache_dir=sys.argv[1])
+
+        eng_params = g.get_parameters(parameter_type="ENG")
+        eng_data = g.generate_narrow_dataframe(parameters=eng_params)
+
+        sci_params = g.get_parameters(parameter_type="SCI")
+        sci_data = g.generate_narrow_dataframe(parameters=sci_params)
+
+        all_data = g.concat_sci_eng(science_data=sci_data, engineering_data=eng_data)
+        all_data = g.convert_to_datetime(data=all_data)
+        all_data = g.round_datetime(data=all_data, frequency="S")
+        all_data = g.round_values(data=all_data, round_number=4)
+        all_data = g.insert_mission_id(data=all_data, mission_id=mission_info.mission_id.values[0])
+
+        if post:
+            last_datetime = g.get_last_datetime_in_db(mission_id=g.mission_id)
+            if not last_datetime.empty:
+                all_data = all_data[all_data.date_time > last_datetime.values[0]]
+
+            if not all_data.empty:
+                print(f"\nPosting data in {os.getenv('PNBOIA_GLIDER_DB')}...")
+                g.db.post(schema='data', table='data', data=all_data)
+            else:
+                print(f"No new data for this mission.")
+
+        print("\nETL SUCCESSFUL RUN.")
+
+    except Exception:
+        print(f"""Error processing mission '{mission_info.name}' (mission_id = {mission_info.mission_id}):""")
+        traceback.print_exc()
