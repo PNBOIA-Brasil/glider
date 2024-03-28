@@ -27,5 +27,6 @@ setup(
     packages = find_packages(where="src"),
     python_requires = ">=3.6",
     install_requires=requirements,
-    scripts=['scripts/pnboia-glider-decoder']
+    scripts=['scripts/pnboia-glider-decoder',
+                'scripts/glider-etl']
 )

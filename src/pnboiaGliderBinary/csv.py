@@ -18,7 +18,7 @@ from glob import glob
 import re
 import sys
 
-class PNBOIAGliderData():
+class GliderDataToCSV():
 
     def __init__(self, binary_files_path:str, cache_dir:str, extension:str=".[st]bd"):
 
@@ -26,9 +26,6 @@ class PNBOIAGliderData():
         self.extension = "*" + extension
         self.pattern = os.path.join(binary_files_path,self.extension)
         self.cache_dir = cache_dir
-
-        print("Decoding binary data with dbdreader...")
-        self.bd = MultiDBD(pattern=self.pattern, cacheDir=self.cache_dir)
 
         self.data_file_names = glob(os.path.join(binary_files_path,"*bd"))
         self.cache_file_names = glob(os.path.join(cache_dir,"*.cac"))
@@ -51,6 +48,9 @@ class PNBOIAGliderData():
         self.eng_params_selection = ['m_depth', 'm_lat', 'm_lon']
         self.sci_params_selection = ['sci_rbrctd_temperature_00', 'sci_oxy4_oxygen','sci_rbrctd_salinity_00',
                                     'sci_seaowl_chl_scaled', 'sci_seaowl_fdom_scaled','sci_seaowl_bb_scaled']
+
+        print("Decoding binary data with dbdreader...")
+        self.bd = MultiDBD(pattern=self.pattern, cacheDir=self.cache_dir)
 
 
     # WIDE CSV METHODS
